@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlmodel import Field, SQLModel, Relationship, Session, create_engine, select
 import os
+import sqlalchemy as sa
 
 # URL de connexion à la base de données
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgrespassword@postgres:5432/assistant_ia")
@@ -12,7 +13,7 @@ engine = create_engine(DATABASE_URL)
 class User(SQLModel, table=True):
     """Modèle représentant un utilisateur du bot."""
     id: Optional[int] = Field(default=None, primary_key=True)
-    telegram_id: int = Field(index=True, unique=True)
+    telegram_id: int = Field(sa_type=sa.BigInteger, index=True, unique=True)
     username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
