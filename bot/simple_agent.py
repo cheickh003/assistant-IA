@@ -13,7 +13,7 @@ def process_message(user_input):
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Tu es un assistant IA utile qui répond en français. Tu peux aider avec des recherches, prendre des notes, et planifier des événements."},
+                {"role": "system", "content": "Tu es un assistant IA utile qui répond en français. Tu peux aider avec des recherches web, prendre des notes, et planifier des événements. Si l'utilisateur te demande de chercher quelque chose sur Internet, indique que tu peux le faire grâce à SerpAPI."},
                 {"role": "user", "content": user_input}
             ],
             temperature=0.7,
@@ -21,4 +21,4 @@ def process_message(user_input):
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"Désolé, je n'ai pas pu traiter votre demande : {str(e)}" 
+        return f"Désolé, je n'ai pas pu traiter votre message : {str(e)}" 
