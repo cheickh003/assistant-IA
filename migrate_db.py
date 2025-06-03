@@ -16,7 +16,7 @@ def migrate():
     
     # Connexion à la base de données
     try:
-        engine = create_engine(DATABASE_URL)
+        engine = create_engine(DATABASE_URL, isolation_level="AUTOCOMMIT")
         conn = engine.connect()
         print("Connexion à la base de données établie.")
     except Exception as e:
@@ -32,22 +32,15 @@ def migrate():
             print("La table 'user' n'existe pas. Aucune migration nécessaire.")
             return
         
-        # Début de la transaction
-        trans = conn.begin()
-        
-        # Modifier le type de la colonne telegram_id
+        # Exécuter directement la requête SQL sans gérer manuellement les transactions
+        # (isolation_level="AUTOCOMMIT" s'en occupe)
         print("Modification du type de la colonne telegram_id de INTEGER à BIGINT...")
         conn.execute(text("ALTER TABLE \"user\" ALTER COLUMN telegram_id TYPE BIGINT"))
         
-        # Confirmer la transaction
-        trans.commit()
         print("Migration terminée avec succès.")
         
     except Exception as e:
         print(f"Erreur lors de la migration: {e}")
-        if 'trans' in locals() and trans.is_active:
-            trans.rollback()
-            print("Transaction annulée.")
         sys.exit(1)
     finally:
         conn.close()
