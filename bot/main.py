@@ -2,20 +2,48 @@ import os
 import logging
 import re
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from aiogram import Bot, Dispatcher, types
 # from aiogram.dispatcher.event.bases import UNHANDLED  # Non requis pour l'instant
 from aiogram.exceptions import TelegramBadRequest
+from sqlmodel import Session, select
 
 from bot.config import BOT_TOKEN, WEB_URL
 from bot.simple_agent import process_message
 from bot.tools import web_search
+from bot.tools.voice_handler import process_voice_message
+from bot.models import create_db_and_tables, get_session, User, Message
 
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+# Gestionnaire de messages vocaux
+@dp.message(lambda message: message.voice is not None)
+async def voice_message_handler(message: types.Message):
+    """Traite les messages vocaux et les transcrit."""
+    transcription = await process_voice_message(bot, message)
+    if transcription:
+        # Enregistre le message dans la base de données
+        session = next(get_session())
+        user = User.get_or_create(
+            session,
+            telegram_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name,
+            language_code=message.from_user.language_code
+        )
+        Message.add_message(session, user.id, transcription, is_from_user=True)
+        
+        # Traite la transcription comme un message textuel
+        answer = process_message(transcription)
+        
+        # Enregistre la réponse du bot
+        Message.add_message(session, user.id, answer, is_from_user=False)
+        
+        await message.answer(answer)
 
 @dp.message()
 async def root_handler(message: types.Message):
@@ -25,6 +53,18 @@ async def root_handler(message: types.Message):
         return
     
     user_input = message.text
+    
+    # Enregistre l'utilisateur et le message dans la base de données
+    session = next(get_session())
+    user = User.get_or_create(
+        session,
+        telegram_id=message.from_user.id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name,
+        language_code=message.from_user.language_code
+    )
+    Message.add_message(session, user.id, user_input, is_from_user=True)
     
     # Détecte si l'utilisateur demande explicitement une recherche web
     web_search_patterns = [
@@ -41,17 +81,30 @@ async def root_handler(message: types.Message):
             await message.answer(f"Je recherche '{query}' sur le web...")
             try:
                 results = web_search(query)
-                await message.answer(f"Voici les résultats pour '{query}':")
+                response = f"Voici les résultats pour '{query}':"
+                
+                # Enregistre la réponse du bot
+                Message.add_message(session, user.id, response, is_from_user=False)
+                await message.answer(response)
+                
                 # Envoie les résultats en plusieurs messages si nécessaire
                 for i, result in enumerate(results[:5]):
-                    await message.answer(f"{i+1}. {result}")
+                    result_text = f"{i+1}. {result}"
+                    Message.add_message(session, user.id, result_text, is_from_user=False)
+                    await message.answer(result_text)
                 return
             except Exception as e:
-                await message.answer(f"Désolé, je n'ai pas pu effectuer la recherche : {str(e)}")
+                error_msg = f"Désolé, je n'ai pas pu effectuer la recherche : {str(e)}"
+                Message.add_message(session, user.id, error_msg, is_from_user=False)
+                await message.answer(error_msg)
                 return
     
     # Sinon, traite normalement avec l'agent
     answer = process_message(user_input)
+    
+    # Enregistre la réponse du bot
+    Message.add_message(session, user.id, answer, is_from_user=False)
+    
     await message.answer(answer)
 
 
@@ -61,7 +114,12 @@ app = FastAPI()
 
 @app.on_event("startup")
 async def on_startup() -> None:
-    """Configure le webhook Telegram."""
+    """Configure le webhook Telegram et initialise la base de données."""
+    # Initialisation de la base de données
+    create_db_and_tables()
+    logging.info("Base de données initialisée")
+    
+    # Configuration du webhook Telegram
     if not WEB_URL:
         logging.warning("WEB_URL n'est pas défini. Le webhook ne sera pas configuré.")
         return
@@ -93,6 +151,33 @@ async def handle_webhook(request: Request):
 async def root():
     """Endpoint de santé."""
     return {"status": "ok"}
+
+
+# Endpoint pour récupérer l'historique des messages d'un utilisateur
+@app.get("/api/history/{telegram_id}")
+async def get_user_history(telegram_id: int, session: Session = Depends(get_session)):
+    """Récupère l'historique des messages d'un utilisateur."""
+    user = session.exec(select(User).where(User.telegram_id == telegram_id)).first()
+    if not user:
+        return {"error": "Utilisateur non trouvé"}
+    
+    messages = session.exec(select(Message).where(Message.user_id == user.id).order_by(Message.created_at)).all()
+    return {
+        "user": {
+            "id": user.id,
+            "telegram_id": user.telegram_id,
+            "username": user.username
+        },
+        "messages": [
+            {
+                "id": msg.id,
+                "text": msg.text,
+                "is_from_user": msg.is_from_user,
+                "created_at": msg.created_at.isoformat()
+            }
+            for msg in messages
+        ]
+    }
 
 
 # Ajout du mode polling pour les tests locaux

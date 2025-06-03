@@ -8,6 +8,13 @@ Ce guide vous explique comment déployer l'Assistant IA sur votre serveur Debian
 - Accès SSH à votre serveur
 - Accès root ou sudo
 
+## Nouvelles fonctionnalités
+
+Cette version de l'Assistant IA inclut deux nouvelles fonctionnalités majeures :
+
+1. **Mémoire persistante** : Toutes les conversations et interactions sont stockées dans une base de données PostgreSQL.
+2. **Support des messages vocaux** : Le bot peut maintenant transcrire et répondre à des messages vocaux envoyés via Telegram.
+
 ## Étapes de déploiement
 
 ### 1. Cloner le dépôt sur votre serveur
@@ -31,6 +38,8 @@ Remplissez toutes les variables requises :
 - `GOOGLE_PROJECT` : ID de votre projet Google Cloud
 - `SERPAPI_KEY` : Votre clé API SerpApi
 - `WEB_URL` : URL publique de votre serveur (pour les webhooks)
+- `DATABASE_URL` : URL de connexion à la base de données PostgreSQL (prédéfinie dans docker-compose)
+- `REDIS_URL` : URL de connexion à Redis (prédéfinie dans docker-compose)
 
 ### 3. Utiliser le script de déploiement automatique
 
@@ -72,6 +81,43 @@ Pour que Telegram puisse communiquer avec votre bot, assurez-vous que :
 2. Vous avez configuré correctement la variable `WEB_URL` dans local.env
 3. Si vous utilisez un pare-feu, ouvrez le port 8080
 
+## Gestion des données persistantes
+
+### Accès à l'historique des conversations
+
+L'API expose un endpoint pour accéder à l'historique des conversations d'un utilisateur :
+
+```
+GET /api/history/{telegram_id}
+```
+
+### Sauvegarde des données
+
+Pour sauvegarder les données de votre base PostgreSQL :
+
+```bash
+docker-compose exec postgres pg_dump -U postgres assistant_ia > backup-$(date +%Y%m%d).sql
+```
+
+### Restauration des données
+
+Pour restaurer une sauvegarde :
+
+```bash
+cat backup.sql | docker-compose exec -T postgres psql -U postgres assistant_ia
+```
+
+## Messages vocaux
+
+Le bot prend maintenant en charge les messages vocaux. Lorsqu'un utilisateur envoie un message vocal :
+
+1. Le bot télécharge le fichier audio
+2. Le fichier est transcrit en texte à l'aide de Whisper
+3. La transcription est traitée comme un message textuel normal
+4. La réponse est envoyée à l'utilisateur
+
+Les fichiers audio sont stockés dans un volume Docker persistant (`audio_data`).
+
 ## Maintenance
 
 ### Afficher les logs
@@ -98,4 +144,16 @@ docker-compose up -d --build
 
 ```bash
 docker-compose down
+```
+
+### Arrêter le service en conservant les données
+
+```bash
+docker-compose down
+```
+
+### Arrêter le service et supprimer toutes les données
+
+```bash
+docker-compose down -v
 ``` 
