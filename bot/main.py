@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramBadRequest
 
 from bot.config import BOT_TOKEN, WEB_URL
-from bot.agent import agent
+from bot.simple_agent import process_message
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,29 +21,39 @@ async def root_handler(message: types.Message):
     if not message.text:
         await message.answer("Je ne comprends que le texte pour l'instant.")
         return
-    answer = agent.invoke(message.text)
+    answer = process_message(message.text)
     await message.answer(answer)
 
 
+# Application FastAPI
+app = FastAPI()
+
+
+@app.on_event("startup")
 async def on_startup() -> None:
     """Configure le webhook Telegram."""
     if not WEB_URL:
-        logging.warning("WEB_URL n'est pas défini. Le webhook ne sera pas créé.")
+        logging.warning("WEB_URL n'est pas défini. Le webhook ne sera pas configuré.")
         return
+    
     webhook_url = f"{WEB_URL}/webhook/{BOT_TOKEN}"
     try:
-        await bot.set_webhook(webhook_url)
-        logging.info("Webhook configuré sur %s", webhook_url)
-    except TelegramBadRequest as exc:
-        logging.error("Erreur de configuration webhook : %s", exc)
+        await bot.set_webhook(url=webhook_url)
+        logging.info(f"Webhook configuré: {webhook_url}")
+    except TelegramBadRequest as e:
+        logging.error(f"Erreur lors de la configuration du webhook: {e}")
 
 
-app = FastAPI(on_startup=[on_startup])
+@app.on_event("shutdown")
+async def on_shutdown() -> None:
+    """Supprime le webhook Telegram."""
+    await bot.delete_webhook()
+    logging.info("Webhook supprimé")
 
 
 @app.post(f"/webhook/{BOT_TOKEN}")
-async def telegram_webhook(request: Request):
-    """Point d'entrée pour les updates Telegram."""
+async def webhook_endpoint(request: Request):
+    """Endpoint pour les mises à jour Telegram."""
     update = types.Update.model_validate(await request.json())
     await dp.feed_update(bot, update)
     return {"ok": True}
@@ -51,4 +61,16 @@ async def telegram_webhook(request: Request):
 
 @app.get("/")
 async def root():
-    return {"status": "ok"} 
+    """Endpoint de santé."""
+    return {"status": "ok"}
+
+
+# Ajout du mode polling pour les tests locaux
+if __name__ == "__main__":
+    import asyncio
+    
+    async def main():
+        logging.info("Démarrage du bot en mode polling")
+        await dp.start_polling(bot)
+    
+    asyncio.run(main()) 

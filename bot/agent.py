@@ -19,4 +19,18 @@ agent = initialize_agent(
     llm=llm,
     agent=AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
-) 
+    handle_parsing_errors=True
+)
+
+# Fonction wrapper pour s'assurer que l'agent retourne toujours une chaîne
+def process_agent_response(user_input):
+    try:
+        result = agent.invoke(user_input)
+        if isinstance(result, dict) and "output" in result:
+            return result["output"]
+        elif isinstance(result, str):
+            return result
+        else:
+            return str(result)
+    except Exception as e:
+        return f"Désolé, je n'ai pas pu traiter votre demande : {str(e)}" 

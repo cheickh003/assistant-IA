@@ -17,12 +17,14 @@ def web_search(query: str, num: int = 5) -> list[str]:
     # TODO: Implémenter la recherche réelle
     return [f"Résultat {i+1} pour '{query}'" for i in range(num)]
 
-def add_note(user_id: int, text: str) -> str:
+def add_note(text: str) -> str:
     """Ajoute une note à la base PostgreSQL. Stub."""
-    # TODO: Insérer en base
-    return "Note enregistrée (simulation)."
+    # TODO: Insérer en base avec un user_id fixe pour le moment
+    user_id = 1  # ID utilisateur par défaut pour le moment
+    return f"Note enregistrée (simulation) : {text}"
 
-def list_notes(user_id: int) -> list[Any]:
+def list_notes() -> list[Any]:
     """Liste les notes de l'utilisateur. Stub."""
-    # TODO: Requêter la base
+    # TODO: Requêter la base avec un user_id fixe pour le moment
+    user_id = 1  # ID utilisateur par défaut pour le moment
     return ["Note 1", "Note 2"] 
