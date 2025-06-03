@@ -23,27 +23,35 @@ dp = Dispatcher()
 @dp.message(lambda message: message.voice is not None)
 async def voice_message_handler(message: types.Message):
     """Traite les messages vocaux et les transcrit."""
-    transcription = await process_voice_message(bot, message)
-    if transcription:
-        # Enregistre le message dans la base de données
-        session = next(get_session())
-        user = User.get_or_create(
-            session,
-            telegram_id=message.from_user.id,
-            username=message.from_user.username,
-            first_name=message.from_user.first_name,
-            last_name=message.from_user.last_name,
-            language_code=message.from_user.language_code
-        )
-        Message.add_message(session, user.id, transcription, is_from_user=True)
-        
-        # Traite la transcription comme un message textuel
-        answer = process_message(transcription)
-        
-        # Enregistre la réponse du bot
-        Message.add_message(session, user.id, answer, is_from_user=False)
-        
-        await message.answer(answer)
+    try:
+        # Traite le message vocal
+        transcription = await process_voice_message(bot, message)
+        if transcription:
+            logging.info(f"Transcription reçue: {transcription}")
+            
+            # Enregistre le message dans la base de données
+            session = next(get_session())
+            user = User.get_or_create(
+                session,
+                telegram_id=message.from_user.id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+                language_code=message.from_user.language_code
+            )
+            Message.add_message(session, user.id, transcription, is_from_user=True)
+            
+            # Traite la transcription comme un message textuel
+            answer = process_message(transcription)
+            
+            # Enregistre la réponse du bot
+            Message.add_message(session, user.id, answer, is_from_user=False)
+            
+            # Envoie la réponse en tant que nouveau message
+            await message.answer(answer)
+    except Exception as e:
+        logging.error(f"Erreur dans le gestionnaire de messages vocaux: {str(e)}")
+        await message.reply("Désolé, une erreur s'est produite lors du traitement de votre message vocal.")
 
 @dp.message()
 async def root_handler(message: types.Message):

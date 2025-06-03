@@ -36,7 +36,7 @@ async def process_voice_message(bot, message):
     
     try:
         # Informer l'utilisateur que le traitement est en cours
-        await message.reply("Je traite votre message vocal...")
+        status_message = await message.reply("Je traite votre message vocal...")
         
         # Télécharger le fichier audio
         file_id = voice.file_id
@@ -56,8 +56,8 @@ async def process_voice_message(bot, message):
         # Assembler la transcription
         transcription = " ".join([segment.text for segment in segments])
         
-        # Informer l'utilisateur de la transcription
-        await message.reply(f"Transcription: {transcription}")
+        # Modifier le message de statut au lieu d'en envoyer un nouveau
+        await status_message.edit_text(f"Transcription: {transcription}")
         
         # Retourner la transcription pour un traitement ultérieur
         return transcription
