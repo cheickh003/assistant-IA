@@ -9,7 +9,8 @@ from aiogram.exceptions import TelegramBadRequest
 from sqlmodel import Session, select
 
 from bot.config import BOT_TOKEN, WEB_URL
-from bot.simple_agent import process_message
+# Remplacer l'ancien agent par le nouvel agent avec mémoire
+from bot.memory_agent import process_message_with_memory
 from bot.tools import web_search
 from bot.tools.voice_handler import process_voice_message
 from bot.models import create_db_and_tables, get_session, User, Message
@@ -41,8 +42,8 @@ async def voice_message_handler(message: types.Message):
             )
             Message.add_message(session, user.id, transcription, is_from_user=True)
             
-            # Traite la transcription comme un message textuel
-            answer = process_message(transcription)
+            # Traite la transcription comme un message textuel avec l'agent mémoire
+            answer = process_message_with_memory(message.from_user.id, transcription, session)
             
             # Enregistre la réponse du bot
             Message.add_message(session, user.id, answer, is_from_user=False)
@@ -107,8 +108,8 @@ async def root_handler(message: types.Message):
                 await message.answer(error_msg)
                 return
     
-    # Sinon, traite normalement avec l'agent
-    answer = process_message(user_input)
+    # Sinon, traite normalement avec l'agent mémoire
+    answer = process_message_with_memory(message.from_user.id, user_input, session)
     
     # Enregistre la réponse du bot
     Message.add_message(session, user.id, answer, is_from_user=False)
