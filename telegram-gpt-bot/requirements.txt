@@ -1,0 +1,7 @@
+python-telegram-bot==22.1          # API asynchrone modernisée
+langchain==0.3.1                   # inclut SQLChatMessageHistory & Memory
+langchain-openai==0.1.0            # wrapper officiel OpenAI
+sqlite-vec==0.1.7                  # binding PyPI de l'extension vec0
+sqlalchemy>=2.0                    # ORM requis par LangChain
+python-dotenv==1.0.1               # gestion du .env
+aiohttp==3.9.5                     # dépendance PTB 

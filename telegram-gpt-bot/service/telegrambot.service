@@ -1,0 +1,15 @@
+[Unit]
+Description=Telegram GPT Bot
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/telegram-gpt-bot
+EnvironmentFile=/opt/telegram-gpt-bot/.env
+ExecStart=/opt/telegram-gpt-bot/venv/bin/python bot.py
+Restart=on-failure
+User=botuser
+Group=botuser
+
+[Install]
+WantedBy=multi-user.target 
