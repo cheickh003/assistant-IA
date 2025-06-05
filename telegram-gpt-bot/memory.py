@@ -1,35 +1,44 @@
-import os, asyncio, sqlite3
-from langchain_community.vectorstores import SQLiteVec
+import os
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain.memory import ConversationSummaryBufferMemory
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
-db_path = os.getenv("SQLITE_PATH", "memory.db")
-connection_string = f"sqlite:///{db_path}"
 
-# Historique textuel
-def chat_history(chat_id: int):
+DB_PATH = os.getenv("SQLITE_PATH", "bot_memory.db")
+CONNECTION_STRING = f"sqlite:///{DB_PATH}"
+TABLE_NAME = "message_history"
+
+def get_chat_history(chat_id: int) -> SQLChatMessageHistory:
+    """
+    Retourne un objet pour interagir avec l'historique de chat
+    d'un utilisateur spécifique dans la base de données SQLite.
+    """
     return SQLChatMessageHistory(
         session_id=str(chat_id),
-        connection_string=connection_string,
+        connection_string=CONNECTION_STRING,
+        table_name=TABLE_NAME,
     )
 
-# Vector store  (utilise la table embeddings déjà créée)
-vec_store = SQLiteVec(
-    db_path,
-    table_name="embeddings",
-    embedding_function=OpenAIEmbeddings(
-        model=os.getenv("EMBED_MODEL", "text-embedding-3-small"),
-        openai_api_key=os.getenv("OPENAI_API_KEY")
-    ),
-)
+def get_summary_memory(history: SQLChatMessageHistory) -> ConversationSummaryBufferMemory:
+    """
+    Crée une mémoire qui résume les anciens messages pour
+    contrôler la taille du contexte envoyé au LLM.
+    
+    Note: Un LLM est requis pour effectuer le résumé. Nous utilisons
+    le modèle principal ici, mais un modèle plus rapide/économique
+    pourrait être envisagé pour cette tâche.
+    """
+    summarizer_llm = ChatOpenAI(
+        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+        temperature=0.2,
+    )
 
-# Mémoire smart : 4 k tokens max, le reste résumé
-def summary_memory(history):
     return ConversationSummaryBufferMemory(
-        llm=None,  # sera injecté plus tard
+        llm=summarizer_llm,
         chat_memory=history,
-        max_token_limit=4096
+        max_token_limit=3500, # Garde une marge pour le prompt et la réponse
+        return_messages=True, # Important pour le prompt
     ) 

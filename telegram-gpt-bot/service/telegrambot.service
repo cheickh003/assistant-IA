@@ -1,15 +1,35 @@
 [Unit]
-Description=Telegram GPT Bot
+Description=Bot Telegram GPT avec mémoire SQLite
 After=network-online.target
 
 [Service]
+# Type de service standard
 Type=simple
-WorkingDirectory=/opt/telegram-gpt-bot
-EnvironmentFile=/opt/telegram-gpt-bot/.env
-ExecStart=/opt/telegram-gpt-bot/venv/bin/python bot.py
+
+# ATTENTION: Remplacez 'votre_user' par le nom d'utilisateur
+# qui exécutera le bot sur votre serveur Debian.
+User=votre_user
+Group=votre_user
+
+# Le chemin absolu vers le répertoire du projet sur votre serveur
+# Adaptez-le si vous choisissez un autre emplacement que /home/votre_user/
+WorkingDirectory=/home/votre_user/telegram-gpt-bot
+
+# Chemin vers le fichier .env qui contient vos clés API.
+# Le service systemd s'en servira pour charger les variables d'environnement.
+EnvironmentFile=/home/votre_user/telegram-gpt-bot/.env
+
+# Commande pour lancer le bot via son environnement virtuel Python.
+# Assurez-vous que le chemin vers 'venv' est correct.
+ExecStart=/home/votre_user/telegram-gpt-bot/venv/bin/python bot.py
+
+# Politique de redémarrage en cas d'échec
 Restart=on-failure
-User=botuser
-Group=botuser
+RestartSec=5s
+
+# Standard output
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target 

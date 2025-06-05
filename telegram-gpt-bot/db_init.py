@@ -1,28 +1,27 @@
-import sqlite3, os
+import sqlite3
+import os
 from dotenv import load_dotenv
 
+# Charge les variables d'environnement du fichier .env
 load_dotenv()
-db_path = os.getenv("SQLITE_PATH", "memory.db")
 
-con = sqlite3.connect(db_path)
-cur = con.cursor()
+DB_PATH = os.getenv("SQLITE_PATH", "bot_memory.db")
 
-# Charge l'extension vec0 ― nécessite sqlite ≥3.45 compilé --enable-load-extension
-cur.execute("SELECT load_extension('sqlite_vec')")  # nom .so installé par `pip install sqlite-vec`
-# Table messages (texte brut)
-cur.execute("""
-CREATE TABLE IF NOT EXISTS messages(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_id INTEGER,
-    role TEXT,
-    content TEXT,
-    ts DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-""")
-# Table embeddings (vec0)
-cur.execute("""
-CREATE VIRTUAL TABLE IF NOT EXISTS embeddings
-USING vec0(id INTEGER PRIMARY KEY, vec BLOB(1536))
-""")
-con.commit()
-con.close() 
+def main():
+    """
+    Crée le fichier de base de données SQLite s'il n'existe pas.
+    LangChain s'occupera de créer la table nécessaire au premier lancement.
+    Ce script sert simplement à confirmer que le fichier .db est prêt.
+    """
+    print("Vérification de la base de données...")
+    try:
+        # La simple connexion crée le fichier s'il est manquant.
+        con = sqlite3.connect(DB_PATH)
+        con.close()
+        print(f"Base de données prête à l'emplacement : {DB_PATH}")
+        print("La table pour l'historique des messages sera créée automatiquement par LangChain au premier usage.")
+    except sqlite3.Error as e:
+        print(f"Erreur lors de l'initialisation de la base de données : {e}")
+
+if __name__ == "__main__":
+    main() 
