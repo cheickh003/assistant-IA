@@ -1,19 +1,22 @@
-FROM python:3.11-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
-# Dépendances système minimales
-RUN apt-get update && \
-    apt-get install -y git ffmpeg pkg-config build-essential \
-    libavcodec-dev libavformat-dev libavdevice-dev libavutil-dev \
-    libswscale-dev libswresample-dev libavfilter-dev && \
-    rm -rf /var/lib/apt/lists/*
+# Installation des dépendances système
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
+# Copie des fichiers de dépendances et installation
 COPY requirements.txt .
-ARG CACHEBUST=1
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copie du code de l'application
 COPY . .
 
-# Commande de lancement
-CMD ["uvicorn", "bot.main:app", "--host", "0.0.0.0", "--port", "8080"] 
+# Exposition du port
+EXPOSE 8000
+
+# Commande de démarrage
+CMD ["python", "run.py", "--mode", "webhook"]
